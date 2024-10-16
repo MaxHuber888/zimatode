@@ -1,0 +1,57 @@
+def max_heapify(arr, i):
+    n = len(arr)
+    # Only checking the non-leaf nodes
+    while i < n // 2:
+        largest = i
+        left = 2 * i + 1
+        right = 2 * i + 2
+
+        if left < n and arr[left] > arr[largest]:
+            largest = left
+
+        if right < n and arr[right] > arr[largest]:
+            largest = right
+
+        if largest != i:
+            arr[i], arr[largest] = arr[largest], arr[i]
+            i = 0
+        else:
+            i+=1
+    return arr
+
+def print_tree(array):
+    def get_height(n):
+        return (n.bit_length() - 1) if n > 0 else 0
+
+    def get_max_width(height):
+        return 2 ** height
+
+    if not array:
+        print("Empty tree")
+        return
+
+    height = get_height(len(array))
+    max_width = get_max_width(height)
+
+    levels = []
+    for i in range(height + 1):
+        level_start = 2**i - 1
+        level_end = min(level_start + 2**i, len(array))
+        levels.append(array[level_start:level_end])
+
+    for i, level in enumerate(levels):
+        space_count = max_width // (2 ** (i + 1))
+        spaces = " " * space_count
+        print(spaces, end="")
+        for j, value in enumerate(level):
+            print(f"{value:^{space_count * 2}}", end="")
+            if j < len(level) - 1:
+                print(spaces, end="")
+        print()
+
+A = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+
+print("Before: ")
+print_tree(A)
+print("After: ")
+print_tree(max_heapify(A, 0))
