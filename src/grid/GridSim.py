@@ -1,6 +1,5 @@
 import numpy as np
 import pygame
-from src.media.audio import load_beat_times
 
 class GridSim:
     def __init__(self, SCREEN_WIDTH, SCREEN_HEIGHT, CELL_SIZE, SURFACE_TENSION=0.5, OPT_DENSITY=120, GRAVITY_STRENGTH=2, NUM_STEPS=5):
@@ -16,82 +15,44 @@ class GridSim:
         self.NUM_STEPS = NUM_STEPS
 
         # INITIALIZE GRIDS
-        density_grad = np.zeros((self.GRID_WIDTH, self.GRID_HEIGHT))
-        opt_density_grad = np.ones((self.GRID_WIDTH, self.GRID_HEIGHT)) * OPT_DENSITY
-        cx, cy = self.GRID_WIDTH // 2, self.GRID_HEIGHT // 2
-        gravity_grad = np.zeros((self.GRID_WIDTH, self.GRID_HEIGHT))
-        impulse_grad = np.zeros((self.GRID_WIDTH, self.GRID_HEIGHT))
+        self.density_grad = np.zeros((self.GRID_WIDTH, self.GRID_HEIGHT))
+        self.opt_density_grad = np.ones((self.GRID_WIDTH, self.GRID_HEIGHT)) * OPT_DENSITY
+        self.cx, self.cy = self.GRID_WIDTH // 2, self.GRID_HEIGHT // 2
+        self.gravity_grad = np.zeros((self.GRID_WIDTH, self.GRID_HEIGHT))
+        self.impulse_grad = np.zeros((self.GRID_WIDTH, self.GRID_HEIGHT))
 
-def run_grid_sim():
-    # CONSTANTS
+        # Calculate gravity gradient
+        for i in range(self.GRID_WIDTH):
+            for j in range(self.GRID_HEIGHT):
+                dist = np.sqrt((i - self.cx)**2 + (j - self.cy)**2) + 1
+                self.gravity_grad[i, j] = GRAVITY_STRENGTH / dist
 
+        # Set initial optimal density to true
+        self.opt_density_grad = self.opt_density_grad + self.gravity_grad
 
-    # LOAD BEAT TIMES
-    audio_path = "audio/dreamtime.mp3"
-    beat_times = load_beat_times(audio_path)
+        self.density_grad[self.cx, self.cy] = self.GLOBAL_VOLUME
 
-    # INIT GRID
+    def update(self, low_impulse, mid_impulse, high_impulse, impulse):
+        # Calculate impulse gradient
+        for i in range(self.GRID_WIDTH):
+            for j in range(self.GRID_HEIGHT):
+                dist = np.sqrt((i - self.cx)**2 + (j - self.cy)**2) + 1
+                self.impulse_grad[i, j] = impulse / dist
 
+        # Update density gradient
+        self.density_grad = self.density_grad + self.impulse_grad
 
-    # Calculate gravity gradient
-    for i in range(GRID_WIDTH):
-        for j in range(GRID_HEIGHT):
-            dist = np.sqrt((i - cx)**2 + (j - cy)**2) + 1
-            gravity_grad[i, j] = GRAVITY_STRENGTH / dist
+        # Update optimal density gradient
+        self.density_grad = self.density_grad + self.SURFACE_TENSION * (self.opt_density_grad - self.density_grad)
 
-    # Calculate impulse gradient
-    for i in range(GRID_WIDTH):
-        for j in range(GRID_HEIGHT):
-            dist = np.sqrt((i - cx)**2 + (j - cy)**2) + 1
-            impulse_grad[i, j] = IMPULSE_STRENGTH / dist
-
-    # Set initial optimal density to true
-    opt_density_grad = opt_density_grad + gravity_grad
-
-    # SET UP PYGAME
-    pygame.init()
-    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-    pygame.display.set_caption('Fluid Simulation (Density-Based Grid)')
-
-    # START AUDIO
-    pygame.mixer.music.load(audio_path)
-    pygame.mixer.music.play()
-
-    # MAIN SIMULATION LOOP
-    clock = pygame.time.Clock()
-    running = True
-    current_beat_idx = 0
-    density_grad[cx, cy] = GLOBAL_VOLUME
-    while running:
-        screen.fill((255, 255, 255))  # White background
-
-        # CHECK FOR EVENTS
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-
-        # CHECK FOR IMPULSE
-        if current_beat_idx < len(beat_times):
-            current_time = pygame.mixer.music.get_pos() / 1000.0  # Get time in seconds
-            if current_time >= beat_times[current_beat_idx]:
-                # APPLY IMPULSE TO OPTIMAL DENSITY
-                density_grad = density_grad + impulse_grad
-                current_beat_idx += 1
-
-        # UPDATE DENSITY
-        density_grad = density_grad + SURFACE_TENSION * (opt_density_grad - density_grad)
-
-        # RENDER
-        for i in range(GRID_WIDTH):
-            for j in range(GRID_HEIGHT):
+    def draw(self, surface):
+        for i in range(self.GRID_WIDTH):
+            for j in range(self.GRID_HEIGHT):
                 # Normalize the density to a value between 0 and 255
-                color_intensity = int(min(max(density_grad[i,j],0), 255))
+                color_intensity = int(min(max(self.density_grad[i,j],0), 255))
 
                 # Draw the cell with the color mapped to the density
                 color = (color_intensity, color_intensity, color_intensity)  # Shades of gray
-                pygame.draw.rect(screen, color, (i*CELL_SIZE, j*CELL_SIZE, CELL_SIZE, CELL_SIZE))
+                pygame.draw.rect(surface, color, (i*self.CELL_SIZE, j*self.CELL_SIZE, self.CELL_SIZE, self.CELL_SIZE))
 
-        pygame.display.flip()
-        clock.tick(10)  # 60 FPS
 
-    pygame.quit()

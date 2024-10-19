@@ -1,8 +1,6 @@
 import pygame
 import math
-
 from src.branch.branch import Branch
-
 
 class BranchSim():
     def __init__(self, SCREEN_WIDTH, SCREEN_HEIGHT, MAX_LENGTH, BRANCHING_FACTOR, GROWTH_RATE, SHRINK_RATE, BRANCH_WIDTH, MAX_LEVELS, BRANCH_COLOR):
@@ -36,7 +34,7 @@ class BranchSim():
                 trunk=True
             ))
 
-    def update(self, impulse):
+    def update(self, low_impulse, mid_impulse, high_impulse, impulse):
         for branch in self.branches:
             branch.grow_and_shrink(self.GROWTH_RATE + impulse, self.SHRINK_RATE)
 

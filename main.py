@@ -1,9 +1,10 @@
 import pygame
 import math
-from src.media.audio import load_beat_times
+from src.media.audio import analyze_audio, get_current_energy
 from src.particle.ParticleSim import ParticleSim
 from src.branch.BranchSim import BranchSim
-#from src.grid.GridSim import GridSim
+from src.grid.GridSim import GridSim
+from src.spring.SpringSim import SpringSim
 
 # INITIALIZE PYGAME
 pygame.init()
@@ -13,12 +14,14 @@ SCREEN_WIDTH, SCREEN_HEIGHT = 3840, 2160
 FPS = 30
 NAME = "Aphex Simulation"
 SOUND_ON = True
-IMPULSE_STRENGTH = 5
 OBJECT_COLOR = (255, 255, 255)
 
+# IMPULSE CONSTANTS
+BASE_IMPULSE_STRENGTH = 10
+ENERGY_THRESHOLD = 0.2  # Minimum energy level to trigger impulse
+
 # SIMULATION CONSTANTS
-# "grid", "particle", "spring" or "branch"
-SIMULATION_TYPE = "branch"
+SIMULATION_TYPE = "spring"  # "grid", "particle", "spring" or "branch"
 
 # RECORDING CONSTANTS
 CAPTURING = False
@@ -29,7 +32,15 @@ _current_frame = 0
 # CREATE SIMULATION OBJECT
 match SIMULATION_TYPE:
     case "grid":
-        pass
+        sim = GridSim(
+            SCREEN_WIDTH=SCREEN_WIDTH,
+            SCREEN_HEIGHT=SCREEN_HEIGHT,
+            CELL_SIZE=10,
+            SURFACE_TENSION=0.5,
+            OPT_DENSITY=120,
+            GRAVITY_STRENGTH=2,
+            NUM_STEPS=5
+        )
     case "particle":
         sim = ParticleSim(
             SCREEN_WIDTH=SCREEN_WIDTH,
@@ -39,7 +50,16 @@ match SIMULATION_TYPE:
             PARTICLE_COLOR=OBJECT_COLOR
         )
     case "spring":
-        pass
+        sim = SpringSim(
+            SCREEN_WIDTH=SCREEN_WIDTH,
+            SCREEN_HEIGHT=SCREEN_HEIGHT,
+            NUM_POINTS=100,
+            POINTS_PER_BULB=5,
+            RADIUS=300,
+            FRICTION=0.96,
+            K=0.001,
+            EDGE_REST_LENGTH=1
+        )
     case "branch":
         sim = BranchSim(
             SCREEN_WIDTH=SCREEN_WIDTH,
@@ -53,15 +73,14 @@ match SIMULATION_TYPE:
             BRANCH_COLOR=OBJECT_COLOR
         )
 
-# LOAD BEAT TIMES
+# LOAD AUDIO ANALYSIS
 if SOUND_ON:
-    audio_path = "audio/everything.mp3"
-    beat_times = load_beat_times(audio_path)
+    audio_path = "audio/half.mp3"
+    _, energies = analyze_audio(audio_path)
 
     # START AUDIO
     pygame.mixer.music.load(audio_path)
     pygame.mixer.music.play()
-current_beat_idx = 0
 
 # MAIN GAME LOOP
 running = True
@@ -77,22 +96,24 @@ while running:
         if event.type == pygame.KEYDOWN:
             running = False
 
-    # DETERMINE IMPULSE
-    impulse = 0
+    # DETERMINE IMPULSES
+    low_impulse, mid_impulse, high_impulse, impulse = 0, 0, 0, 0
     if SOUND_ON:
-        if current_beat_idx < len(beat_times):
-            current_time = pygame.mixer.music.get_pos() / 1000.0  # Get time in seconds
-            if current_time >= beat_times[current_beat_idx]:
-                impulse = IMPULSE_STRENGTH
-                current_beat_idx += 1
+        current_time = pygame.mixer.music.get_pos() / 1000.0  # Get time in seconds
+        low_impulse, mid_impulse, high_impulse, impulse = get_current_energy(
+            current_time, energies, ENERGY_THRESHOLD, BASE_IMPULSE_STRENGTH
+        )
     else:
-        if current_beat_idx % 50 == 0:
-            impulse = IMPULSE_STRENGTH
-        current_beat_idx += 1
-
+        # Demo mode - create periodic impulses
+        frame_count = pygame.time.get_ticks() // 33  # approximately 30 FPS
+        if frame_count % 50 == 0:
+            low_impulse = BASE_IMPULSE_STRENGTH
+            mid_impulse = BASE_IMPULSE_STRENGTH
+            high_impulse = BASE_IMPULSE_STRENGTH
+            impulse = BASE_IMPULSE_STRENGTH
 
     # UPDATE SIMULATION
-    sim.update(impulse=impulse)
+    sim.update(low_impulse, mid_impulse, high_impulse, impulse)
 
     # DRAW SIMULATION
     screen.fill((0, 0, 0))

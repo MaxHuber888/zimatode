@@ -20,7 +20,7 @@ class ParticleSim:
             ) for _ in range(PARTICLE_COUNT)
         ]
 
-    def update(self, impulse):
+    def update(self, low_impulse, mid_impulse, high_impulse, impulse):
         # CALCULATE IMPULSE FOR PARTICLES
         if impulse > 0:
             impulse_direction = [particle.pos - self.CENTER for particle in self.particles]
